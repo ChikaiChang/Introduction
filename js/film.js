@@ -92,7 +92,10 @@
   async function listFolder(folder) {
     if (!folder) return [];
     try {
-      const res = await fetch(folder);
+      const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), 1200) : null;
+      const res = await fetch(folder, ctrl ? { signal: ctrl.signal } : {});
+      if (timer) clearTimeout(timer);
       if (!res.ok) return [];
       const html = await res.text();
       const names = [...html.matchAll(/href="([^"]+)"/gi)]
@@ -185,15 +188,18 @@
     const listed = (window.SITE_GALLERY && window.SITE_GALLERY[key]) || [];
     const mapped = listed.map((entry) => mergeItem(entry, folder)).filter((item) => item.src);
     const byFile = new Map(mapped.map((item) => [fileName(item.src).toLowerCase(), item]));
-    const discovered = await listFolder(folder);
-    discovered.forEach((name) => {
-      const keyName = name.toLowerCase();
-      if (!byFile.has(keyName)) {
-        const item = mergeItem({ file: name }, folder);
-        mapped.push(item);
-        byFile.set(keyName, item);
-      }
-    });
+    const hasManifest = !!(window.SITE_GALLERY && Object.prototype.hasOwnProperty.call(window.SITE_GALLERY, key));
+    if (!hasManifest) {
+      const discovered = await listFolder(folder);
+      discovered.forEach((name) => {
+        const keyName = name.toLowerCase();
+        if (!byFile.has(keyName)) {
+          const item = mergeItem({ file: name }, folder);
+          mapped.push(item);
+          byFile.set(keyName, item);
+        }
+      });
+    }
     mapped.sort((a, b) => fileName(a.src).localeCompare(fileName(b.src), "zh-CN", { numeric: true }));
     const defaults = {
       photography: { kickerZh: "摄影", kickerEn: "Photography" },
@@ -255,7 +261,7 @@
     const alt = item.locationZh || item.titleZh || item.file || "photo";
     return `
       <section class="film-frame" data-side="${side}">
-        <img src="${esc(hrefFor(item.src))}" alt="${esc(alt)}" decoding="async">
+        <img src="${esc(hrefFor(item.src))}" alt="${esc(alt)}" decoding="async" loading="${index === 0 ? "eager" : "lazy"}">
         ${metaHTML(item)}
       </section>
     `;
@@ -294,14 +300,31 @@
     mount.querySelectorAll(".film-frame").forEach(pruneEmpty);
 
     const frames = [...mount.querySelectorAll(".film-frame")];
-    for (let i = 0; i < items.length; i += 1) {
+    const enrichFrame = async (index) => {
+      if (!items[index] || items[index]._enriched) return;
+      items[index]._enriched = true;
       try {
-        await enrich(items[i]);
-        applyMeta(frames[i], items[i]);
+        await enrich(items[index]);
+        applyMeta(frames[index], items[index]);
       } catch (_) {
         /* keep filename meta */
       }
+    };
+
+    enrichFrame(0);
+    if (typeof IntersectionObserver === "undefined") {
+      for (let i = 1; i < items.length; i += 1) enrichFrame(i);
+      return;
     }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const index = frames.indexOf(entry.target);
+        io.unobserve(entry.target);
+        enrichFrame(index);
+      });
+    }, { rootMargin: "240px" });
+    frames.forEach((frame) => io.observe(frame));
   }
 
   document.querySelectorAll("[data-gallery]").forEach((mount) => {

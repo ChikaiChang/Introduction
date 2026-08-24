@@ -154,6 +154,7 @@ a:hover {
 
 .portrait {
   width: 100%;
+  max-width: 100%;
   aspect-ratio: 500 / 682;
   object-fit: cover;
   object-position: center 12%;
@@ -670,13 +671,15 @@ a:focus-visible,
   .profile {
     position: static;
     display: grid;
-    grid-template-columns: 148px 1fr;
-    gap: 16px;
-    align-items: center;
+    grid-template-columns: 96px 1fr;
+    gap: 14px;
+    align-items: start;
   }
 
   .portrait {
-    border-radius: 16px;
+    width: 96px;
+    max-width: 96px;
+    border-radius: 14px;
   }
 
   .profile h1 {
@@ -710,8 +713,33 @@ a:focus-visible,
     width: min(1120px, calc(100% - 28px));
   }
 
+  .nav {
+    gap: 8px;
+    font-size: 0.84rem;
+  }
+
+  .nav a {
+    font-size: 0.84rem;
+  }
+
   .profile {
-    grid-template-columns: 1fr;
+    grid-template-columns: 76px 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .portrait {
+    width: 76px;
+    max-width: 76px;
+    border-radius: 12px;
+  }
+
+  .profile h1 {
+    font-size: 1.32rem;
+  }
+
+  .film-meta {
+    padding: 48px 16px 22px;
   }
 
   .news-list li,
