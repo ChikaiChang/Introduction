@@ -5,6 +5,7 @@ window.SITE_GALLERY = {
       assets/life/sports/  滑雪
       assets/life/art/     音乐
     GitHub Pages 不会列出目录，所以这里要写上文件名。
+    数组从上到下就是页面从上到下的顺序。
     侧边文字按文件名在这里备注；拍摄参数优先读照片 EXIF，写了的字段会盖过 EXIF。
   */
   photography: [

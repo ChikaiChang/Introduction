@@ -200,7 +200,6 @@
         }
       });
     }
-    mapped.sort((a, b) => fileName(a.src).localeCompare(fileName(b.src), "zh-CN", { numeric: true }));
     const defaults = {
       photography: { kickerZh: "摄影", kickerEn: "Photography" },
       sports: { kickerZh: "滑雪", kickerEn: "Skiing" },
