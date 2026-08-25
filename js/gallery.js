@@ -9,10 +9,7 @@ window.SITE_GALLERY = {
     侧边文字按文件名在这里备注；拍摄参数优先读照片 EXIF，写了的字段会盖过 EXIF。
   */
   photography: [
-    { file: "DSCF5200.JPG" },
-    { file: "DSCF5201.JPG" },
     { file: "DSCF7213.JPG" },
-    { file: "DSCF7323.JPG" },
     { file: "IMG_1140.JPG" },
     { file: "IMG_1212.JPG" },
     { file: "IMG_1216.JPG" },
@@ -23,12 +20,9 @@ window.SITE_GALLERY = {
     { file: "IMG_1366.JPG" },
     { file: "IMG_1367.JPG" },
     { file: "北京 前门 FujifilmXT-4 XF16-55F2.8 .JPG" },
-    { file: "北京 前门 FujifilmXT-4 XF16-55F2.8 2.JPG" },
-    { file: "北京 前门 FujifilmXT-4 XF16-55F2.8 3.JPG" },
     { file: "北京 前门 FujifilmXT-4 XF16-55F2.8 4.JPG" },
     { file: "北京 北京展览馆 FujifilmXT-4 XF16-55F2.8.JPG" },
     { file: "北京 景山 FujifilmXT-4 Taron18-300F3.5-6.3 .JPG" },
-    { file: "北京 景山 FujifilmXT-4 Taron18-300F3.5-6.3 2.JPG.JPG" },
     { file: "北京 景山 FujifilmXT-4 Taron18-300F3.5-6.3 3.JPG.JPG" },
     { file: "北京美术馆 FujifilmXT-4 XF16-55F2.8 .JPG" },
     { file: "重庆 洪崖洞 FujifilmXT-4 XF16-55F2.8 2.JPG" },
