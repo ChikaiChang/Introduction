@@ -6,27 +6,27 @@ window.SITE_GALLERY = {
       assets/life/art/     音乐
     GitHub Pages 不会列出目录，所以这里要写上文件名。
     数组从上到下就是页面从上到下的顺序。
-    侧边文字按文件名在这里备注；拍摄参数优先读照片 EXIF，写了的字段会盖过 EXIF。
+    地点从文件名读取；机身和镜头优先读 EXIF。
   */
   photography: [
-    { file: "DSCF7213.JPG" },
-    { file: "IMG_1140.JPG" },
-    { file: "IMG_1212.JPG" },
-    { file: "IMG_1216.JPG" },
-    { file: "IMG_1217.JPG" },
-    { file: "IMG_1218.JPG" },
-    { file: "IMG_1360.JPG" },
-    { file: "IMG_1364.JPG" },
-    { file: "IMG_1366.JPG" },
-    { file: "IMG_1367.JPG" },
+    { file: "北京 CBD.JPG" },
     { file: "北京 前门 FujifilmXT-4 XF16-55F2.8 .JPG" },
     { file: "北京 前门 FujifilmXT-4 XF16-55F2.8 4.JPG" },
     { file: "北京 北京展览馆 FujifilmXT-4 XF16-55F2.8.JPG" },
+    { file: "北京 景山.JPG" },
+    { file: "北京 景山 (2).JPG" },
+    { file: "北京 景山 (3).JPG" },
     { file: "北京 景山 FujifilmXT-4 Taron18-300F3.5-6.3 .JPG" },
     { file: "北京 景山 FujifilmXT-4 Taron18-300F3.5-6.3 3.JPG.JPG" },
     { file: "北京美术馆 FujifilmXT-4 XF16-55F2.8 .JPG" },
+    { file: "深圳 南山.JPG" },
+    { file: "深圳 南山 (2).JPG" },
+    { file: "深圳 南山 (3).JPG" },
+    { file: "重庆 洪崖洞.JPG" },
+    { file: "重庆 洪崖洞 FujifilmXT-4 XF16-55F2.8.JPG" },
     { file: "重庆 洪崖洞 FujifilmXT-4 XF16-55F2.8 2.JPG" },
-    { file: "重庆 洪崖洞 FujifilmXT-4 XF16-55F2.8.JPG" }
+    { file: "香港 中环.JPG" },
+    { file: "香港 K11.JPG" }
   ],
   sports: [],
   art: [

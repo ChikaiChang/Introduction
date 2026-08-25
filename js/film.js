@@ -68,19 +68,62 @@
     return text.replace(/\s+/g, " ");
   }
 
+  const PLACE_EN = {
+    北京: "Beijing",
+    深圳: "Shenzhen",
+    重庆: "Chongqing",
+    香港: "Hong Kong",
+    前门: "Qianmen",
+    景山: "Jingshan",
+    南山: "Nanshan",
+    洪崖洞: "Hongyadong",
+    中环: "Central",
+    CBD: "CBD",
+    K11: "K11",
+    北京展览馆: "Beijing Exhibition Center",
+    北京美术馆: "Art Museum, Beijing"
+  };
+
+  function prettyLocationZh(zh) {
+    return String(zh || "").replace(/\s+/g, " · ").trim();
+  }
+
+  function prettyLocationEn(zh) {
+    const text = String(zh || "").trim();
+    if (!text) return "";
+    if (PLACE_EN[text]) return PLACE_EN[text];
+    const parts = text.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2 && PLACE_EN[parts[0]]) {
+      const city = PLACE_EN[parts[0]];
+      const rest = parts.slice(1).map((part) => PLACE_EN[part] || part).join(" ");
+      if (rest.includes(city)) return rest;
+      return `${rest}, ${city}`;
+    }
+    return parts.map((part) => PLACE_EN[part] || part).join(" ");
+  }
+
   function parseFilenameMeta(name) {
     let base = fileName(name);
     while (IMAGE_EXT.test(base)) base = base.replace(IMAGE_EXT, "");
-    base = base.replace(/\s+\d+$/, "").trim();
+    base = base.replace(/\s*\(\d+\)\s*$/, "").replace(/\s+\d+$/, "").trim();
     const match = base.match(CAMERA_RE);
-    if (!match) return {};
-    const locationZh = base.slice(0, match.index).trim();
-    const rest = base.slice(match.index).trim();
-    const parts = rest.split(/\s+/);
+    let locationZh = "";
+    let camera = "";
+    let lens = "";
+    if (match) {
+      locationZh = base.slice(0, match.index).trim();
+      const rest = base.slice(match.index).trim();
+      const parts = rest.split(/\s+/);
+      camera = prettyCamera(parts[0] || match[1]);
+      lens = prettyLens(parts.slice(1).join(" "));
+    } else {
+      locationZh = base;
+    }
     return {
-      locationZh,
-      camera: prettyCamera(parts[0] || match[1]),
-      lens: prettyLens(parts.slice(1).join(" "))
+      locationZh: prettyLocationZh(locationZh),
+      locationEn: prettyLocationEn(locationZh),
+      camera,
+      lens
     };
   }
 
@@ -233,10 +276,6 @@
         <div class="film-exif">
           ${row("机身", "Camera", item.camera)}
           ${row("镜头", "Lens", item.lens)}
-          ${row("焦距", "Focal", item.focal)}
-          ${row("光圈", "Aperture", item.aperture)}
-          ${row("快门", "Shutter", item.shutter)}
-          ${row("ISO", "ISO", item.iso)}
         </div>
         <p class="film-note">
           <span class="lang-zh">${esc(item.noteZh || "")}</span>
@@ -277,14 +316,12 @@
 
   async function enrich(item) {
     const exif = await readExif(item.src);
-    ["camera", "lens", "focal", "aperture", "shutter", "iso", "date"].forEach((key) => {
+    ["camera", "lens", "date"].forEach((key) => {
       if (!item[key] && exif[key]) item[key] = exif[key];
-      if (key === "camera" || key === "lens") {
-        if (exif[key] && (!item[key] || item[key].length < exif[key].length)) item[key] = exif[key];
-      }
-      if (["focal", "aperture", "shutter", "iso", "date"].includes(key) && exif[key]) {
+      if ((key === "camera" || key === "lens") && exif[key] && (!item[key] || item[key].length < exif[key].length)) {
         item[key] = exif[key];
       }
+      if (key === "date" && exif.date) item.date = exif.date;
     });
     return item;
   }
