@@ -54,4 +54,25 @@
       `).join("")}</ul>`;
     }
   }
+
+  const logMount = document.querySelector("[data-changelog]");
+  if (logMount) {
+    const items = window.SITE_CHANGELOG || [];
+    logMount.innerHTML = items.map((item) => `
+      <li>
+        <span class="date">${item.date || ""}</span>
+        <span>
+          <span class="lang-zh">${item.zh || ""}</span>
+          <span class="lang-en">${item.en || item.zh || ""}</span>
+        </span>
+      </li>
+    `).join("");
+  }
+
+  if (/\.github\.io$/i.test(location.hostname)) {
+    const script = document.createElement("script");
+    script.defer = true;
+    script.src = "https://events.vercount.one/js";
+    document.body.appendChild(script);
+  }
 })();
