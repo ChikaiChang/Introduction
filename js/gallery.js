@@ -28,7 +28,10 @@ window.SITE_GALLERY = {
     { file: "香港 中环.JPG" },
     { file: "香港 K11.JPG" }
   ],
-  sports: [],
+  sports: [
+    { file: "IMG_0230.jpg" },
+    { file: "IMG_0573.JPG" }
+  ],
   art: [
     { file: "1.jpg" },
     { file: "2.jpg" },

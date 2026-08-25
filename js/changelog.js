@@ -2,6 +2,11 @@ window.SITE_CHANGELOG = [
   // 新记录加在最上面：{ date: "2026.08.25", zh: "……", en: "……" }
   {
     date: "2026.08.25",
+    zh: "运动页放入两张滑雪照片。",
+    en: "Added two skiing photos to the sports page."
+  },
+  {
+    date: "2026.08.25",
     zh: "主页增加更新日志和访问次数。",
     en: "Added an update log and visit count on the home page."
   },
