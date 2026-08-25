@@ -11,14 +11,14 @@ window.SITE_GALLERY = {
   photography: [
     { file: "DSCF5200.JPG" },
     { file: "DSCF5201.JPG" },
-    { file: "DSCF7213.JPG" },
+  
     { file: "DSCF7323.JPG" },
     { file: "IMG_1140.JPG" },
-    { file: "IMG_1212.JPG" },
-    { file: "IMG_1216.JPG" },
+  
+
     { file: "IMG_1217.JPG" },
     { file: "IMG_1218.JPG" },
-    { file: "IMG_1360.JPG" },
+   
     { file: "IMG_1364.JPG" },
     { file: "IMG_1366.JPG" },
     { file: "IMG_1367.JPG" },
