@@ -434,6 +434,10 @@ a:hover {
 }
 
 .account-card {
+  display: grid;
+  grid-template-columns: 1fr 132px;
+  gap: 22px;
+  align-items: center;
   background: var(--bg-elev);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -453,6 +457,14 @@ a:hover {
   margin: 0 0 12px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+.account-qr {
+  width: 132px;
+  height: 132px;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #fff;
 }
 
 .essay-list {
@@ -736,6 +748,11 @@ a:focus-visible,
 
   .profile h1 {
     font-size: 1.32rem;
+  }
+
+  .account-card {
+    grid-template-columns: 1fr;
+    justify-items: start;
   }
 
   .film-meta {

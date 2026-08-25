@@ -39,8 +39,8 @@
     const items = window.SITE_ESSAYS || [];
     if (!items.length) {
       essayMount.innerHTML = `
-        <p class="essay-empty lang-zh">文章会列在这里。把已发推送的标题和链接发给我，或写进 js/essays.js。</p>
-        <p class="essay-empty lang-en">Published pieces will be listed here. Send titles and links, or add them in js/essays.js.</p>
+        <p class="essay-empty lang-zh">文章会列在这里，点标题打开微信原文。</p>
+        <p class="essay-empty lang-en">Pieces will be listed here. Each title opens the original WeChat post.</p>
       `;
     } else {
       essayMount.innerHTML = `<ul class="essay-list">${items.map((item) => `
