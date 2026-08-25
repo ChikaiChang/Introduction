@@ -1,6 +1,9 @@
 (function () {
   const IMAGE_EXT = /\.(jpe?g|png|webp|gif)$/i;
   const CAMERA_RE = /(Fujifilm[\w\-]*|Fuji[\w\-]*|Sony[\w\-]*|Canon[\w\-]*|Nikon[\w\-]*|Leica[\w\-]*|Hasselblad[\w\-]*|iPhone[\w\-]*|Apple)/i;
+  const NOTES_REPO = "ChikaiChang/Introduction";
+  const NOTES_LABEL = "life-note";
+  const DRAFT_KEY = "site-journal-drafts";
 
   function esc(value) {
     return String(value || "")
@@ -132,6 +135,97 @@
     return `<div class="film-exif-row"><span><span class="lang-zh">${esc(labelZh)}</span><span class="lang-en">${esc(labelEn)}</span></span><b>${esc(value)}</b></div>`;
   }
 
+  function loadDrafts() {
+    try {
+      return JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}") || {};
+    } catch {
+      return {};
+    }
+  }
+
+  function canEditNotes() {
+    const allowed = localStorage.getItem("site-author") === "1" || /(?:^|[?&])edit=1(?:&|$)/.test(location.search);
+    if (allowed) localStorage.setItem("site-author", "1");
+    return allowed;
+  }
+
+  function draftKey(gallery, file) {
+    return `${gallery}::${file}`;
+  }
+
+  function saveDraft(gallery, file, text) {
+    const drafts = loadDrafts();
+    const key = draftKey(gallery, file);
+    if (text) drafts[key] = text;
+    else delete drafts[key];
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
+  }
+
+  function noteFromFile(gallery, file, entry) {
+    const bag = window.SITE_NOTES && window.SITE_NOTES[gallery];
+    const fromNotes = bag && typeof bag[file] === "string" ? bag[file] : "";
+    return (entry && (entry.noteZh || entry.note)) || fromNotes || "";
+  }
+
+  function stripIssueBody(body) {
+    return String(body || "")
+      .replace(/<!--[\s\S]*?-->/g, "")
+      .replace(/^\s+|\s+$/g, "");
+  }
+
+  let issueNotes = new Map();
+  let issuesReady = null;
+
+  function issueTitle(gallery, file) {
+    return `${gallery} / ${file}`;
+  }
+
+  function newIssueUrl(gallery, file, text) {
+    const params = new URLSearchParams({
+      labels: NOTES_LABEL,
+      title: issueTitle(gallery, file),
+      body: `<!-- life-note：改这一段即可，回到网页刷新就会出现在照片旁边。 -->\n\n${text || ""}`
+    });
+    return `https://github.com/${NOTES_REPO}/issues/new?${params.toString()}`;
+  }
+
+  function fetchIssueNotes() {
+    if (issuesReady) return issuesReady;
+    const cached = sessionStorage.getItem("site-life-notes");
+    if (cached) {
+      try {
+        JSON.parse(cached).forEach((row) => issueNotes.set(row.key, row));
+      } catch {
+        /* ignore */
+      }
+    }
+    issuesReady = fetch(
+      `https://api.github.com/repos/${NOTES_REPO}/issues?creator=ChikaiChang&state=open&per_page=100`
+    )
+      .then((res) => (res.ok ? res.json() : []))
+      .then((list) => {
+        if (!Array.isArray(list)) return;
+        issueNotes = new Map();
+        const dump = [];
+        list.forEach((issue) => {
+          if (!issue.user || issue.user.login !== "ChikaiChang") return;
+          const match = String(issue.title || "").match(/^(photography|sports|art)\s*\/\s*(.+)$/);
+          if (!match) return;
+          const row = {
+            key: draftKey(match[1], match[2].trim()),
+            text: stripIssueBody(issue.body),
+            url: issue.html_url,
+            number: issue.number
+          };
+          issueNotes.set(row.key, row);
+          dump.push(row);
+        });
+        sessionStorage.setItem("site-life-notes", JSON.stringify(dump));
+      })
+      .catch(() => {});
+    return issuesReady;
+  }
+
   async function listFolder(folder) {
     if (!folder) return [];
     try {
@@ -212,24 +306,33 @@
     }
   }
 
-  function mergeItem(entry, folder) {
+  function mergeItem(entry, folder, webFolder, gallery) {
     const file = entry.file || fileName(entry.src);
     const src = entry.src || (file ? joinFolder(folder, file) : "");
+    const webSrc = webFolder && file ? joinFolder(webFolder, file) : "";
     const fromName = parseFilenameMeta(file);
+    const published = noteFromFile(gallery, file, entry);
+    const issue = issueNotes.get(draftKey(gallery, file));
+    const draft = loadDrafts()[draftKey(gallery, file)] || "";
     return {
       ...fromName,
       ...entry,
+      gallery,
       file,
       src,
+      webSrc,
       locationZh: entry.locationZh || fromName.locationZh || "",
       camera: entry.camera || fromName.camera || "",
-      lens: entry.lens || fromName.lens || ""
+      lens: entry.lens || fromName.lens || "",
+      noteZh: draft || (issue && issue.text) || published,
+      noteUrl: issue ? issue.url : "",
+      publishedNote: published
     };
   }
 
-  async function collectItems(key, folder) {
+  async function collectItems(key, folder, webFolder) {
     const listed = (window.SITE_GALLERY && window.SITE_GALLERY[key]) || [];
-    const mapped = listed.map((entry) => mergeItem(entry, folder)).filter((item) => item.src);
+    const mapped = listed.map((entry) => mergeItem(entry, folder, webFolder, key)).filter((item) => item.src);
     const byFile = new Map(mapped.map((item) => [fileName(item.src).toLowerCase(), item]));
     const hasManifest = !!(window.SITE_GALLERY && Object.prototype.hasOwnProperty.call(window.SITE_GALLERY, key));
     if (!hasManifest) {
@@ -237,7 +340,7 @@
       discovered.forEach((name) => {
         const keyName = name.toLowerCase();
         if (!byFile.has(keyName)) {
-          const item = mergeItem({ file: name }, folder);
+          const item = mergeItem({ file: name }, folder, webFolder, key);
           mapped.push(item);
           byFile.set(keyName, item);
         }
@@ -255,6 +358,44 @@
       });
     }
     return mapped;
+  }
+
+  function journalHTML(item) {
+    const editing = canEditNotes();
+    const hasText = !!(item.noteZh || "").trim();
+    if (!hasText && !editing) return "";
+    const textZh = hasText ? esc(item.noteZh).replace(/\n/g, "<br>") : "点这里写下当时的所感所悟。";
+    const textEn = hasText ? esc(item.noteEn || item.noteZh).replace(/\n/g, "<br>") : "Write what this frame felt like.";
+    return `
+      <div class="film-journal" data-file="${esc(item.file)}" data-gallery="${esc(item.gallery)}">
+        <p class="film-journal-kicker">
+          <span class="lang-zh">所感所悟</span>
+          <span class="lang-en">A note</span>
+        </p>
+        <p class="film-journal-text${hasText ? "" : " is-empty"}">
+          <span class="lang-zh">${textZh}</span>
+          <span class="lang-en">${textEn}</span>
+        </p>
+        ${editing ? `
+        <button type="button" class="film-journal-toggle">
+          <span class="lang-zh">${hasText ? "编辑" : "写下所感"}</span>
+          <span class="lang-en">${hasText ? "Edit" : "Write a note"}</span>
+        </button>
+        <form class="film-journal-form" hidden>
+          <textarea name="note" rows="5" placeholder="当时在想什么，看见了什么。">${esc(item.noteZh || "")}</textarea>
+          <div class="film-journal-actions">
+            <button type="submit">
+              <span class="lang-zh">先记在这台电脑</span>
+              <span class="lang-en">Save on this device</span>
+            </button>
+            <a class="film-journal-github" href="${esc(item.noteUrl || newIssueUrl(item.gallery, item.file, item.noteZh))}" target="_blank" rel="noopener">
+              <span class="lang-zh">${item.noteUrl ? "在 GitHub 上改" : "发布到 GitHub"}</span>
+              <span class="lang-en">${item.noteUrl ? "Edit on GitHub" : "Publish on GitHub"}</span>
+            </a>
+          </div>
+        </form>` : ""}
+      </div>
+    `;
   }
 
   function metaHTML(item) {
@@ -277,16 +418,13 @@
           ${row("机身", "Camera", item.camera)}
           ${row("镜头", "Lens", item.lens)}
         </div>
-        <p class="film-note">
-          <span class="lang-zh">${esc(item.noteZh || "")}</span>
-          <span class="lang-en">${esc(item.noteEn || item.noteZh || "")}</span>
-        </p>
+        ${journalHTML(item)}
       </aside>
     `;
   }
 
   function pruneEmpty(frame) {
-    frame.querySelectorAll(".film-kicker, .film-place, .film-title, .film-date, .film-note").forEach((node) => {
+    frame.querySelectorAll(".film-kicker, .film-place, .film-title, .film-date").forEach((node) => {
       const text = node.textContent.replace(/\s+/g, "");
       if (!text) node.remove();
     });
@@ -294,24 +432,126 @@
     if (exif && !exif.children.length) exif.remove();
   }
 
-  function frameHTML(item, index) {
+  function frameHTML(item, index, total) {
     const side = item.side || (index % 2 === 0 ? "left" : "right");
     const alt = item.locationZh || item.titleZh || item.file || "photo";
+    const display = item.webSrc || item.src;
     return `
-      <section class="film-frame" data-side="${side}">
-        <img src="${esc(hrefFor(item.src))}" alt="${esc(alt)}" decoding="async" loading="${index === 0 ? "eager" : "lazy"}">
+      <section class="film-frame" data-side="${side}" data-index="${index + 1}" data-total="${total}">
+        <img src="${esc(hrefFor(display))}" data-fallback="${esc(hrefFor(item.src))}" alt="${esc(alt)}" decoding="async" loading="${index < 2 ? "eager" : "lazy"}">
         ${metaHTML(item)}
       </section>
     `;
   }
 
+  function bindJournal(frame, item) {
+    const box = frame.querySelector(".film-journal");
+    if (!box || box.dataset.bound === "1") return;
+    box.dataset.bound = "1";
+    const toggle = box.querySelector(".film-journal-toggle");
+    const form = box.querySelector(".film-journal-form");
+    const area = box.querySelector("textarea");
+    const github = box.querySelector(".film-journal-github");
+    const textNode = box.querySelector(".film-journal-text");
+    if (!toggle || !form || !area || !github || !textNode) return;
+
+    const syncGithub = () => {
+      const next = area.value.trim();
+      if (!item.noteUrl) github.href = newIssueUrl(item.gallery, item.file, next);
+    };
+
+    toggle.addEventListener("click", () => {
+      form.hidden = !form.hidden;
+      if (!form.hidden) {
+        area.focus();
+        syncGithub();
+      }
+    });
+    textNode.addEventListener("click", () => {
+      form.hidden = false;
+      area.focus();
+    });
+    area.addEventListener("input", () => {
+      saveDraft(item.gallery, item.file, area.value.trim());
+      syncGithub();
+    });
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const next = area.value.trim();
+      saveDraft(item.gallery, item.file, next);
+      item.noteZh = next;
+      textNode.classList.toggle("is-empty", !next);
+      textNode.querySelector(".lang-zh").innerHTML = next ? esc(next).replace(/\n/g, "<br>") : "点这里写下当时的所感所悟。";
+      textNode.querySelector(".lang-en").innerHTML = next ? esc(next).replace(/\n/g, "<br>") : "Write what this frame felt like.";
+      toggle.querySelector(".lang-zh").textContent = next ? "编辑" : "写下所感";
+      toggle.querySelector(".lang-en").textContent = next ? "Edit" : "Write a note";
+      form.hidden = true;
+      syncGithub();
+    });
+  }
+
   function applyMeta(frame, item) {
-    const next = document.createElement("div");
-    next.innerHTML = metaHTML(item);
-    const aside = next.querySelector(".film-meta");
-    const old = frame.querySelector(".film-meta");
-    if (old && aside) old.replaceWith(aside);
+    const aside = frame.querySelector(".film-meta");
+    if (!aside) return;
+    const place = aside.querySelector(".film-place");
+    if (place) {
+      const zh = place.querySelector(".lang-zh");
+      const en = place.querySelector(".lang-en");
+      if (zh) zh.textContent = item.locationZh || "";
+      if (en) en.textContent = item.locationEn || item.locationZh || "";
+    }
+    let date = aside.querySelector(".film-date");
+    if (item.date) {
+      if (!date) {
+        date = document.createElement("p");
+        date.className = "film-date";
+        const exif = aside.querySelector(".film-exif");
+        aside.insertBefore(date, exif || aside.querySelector(".film-journal"));
+      }
+      date.textContent = item.date;
+    }
+    let exif = aside.querySelector(".film-exif");
+    const rows = `${row("机身", "Camera", item.camera)}${row("镜头", "Lens", item.lens)}`;
+    if (rows) {
+      if (!exif) {
+        exif = document.createElement("div");
+        exif.className = "film-exif";
+        const journal = aside.querySelector(".film-journal");
+        aside.insertBefore(exif, journal);
+      }
+      exif.innerHTML = rows;
+    }
     pruneEmpty(frame);
+  }
+
+  function refreshJournal(frame, item) {
+    const box = frame.querySelector(".film-journal");
+    if (!box) return;
+    const issue = issueNotes.get(draftKey(item.gallery, item.file));
+    const draft = loadDrafts()[draftKey(item.gallery, item.file)] || "";
+    if (issue && issue.text && !draft) item.noteZh = issue.text;
+    if (issue) {
+      item.noteUrl = issue.url;
+      const github = box.querySelector(".film-journal-github");
+      if (github) {
+        github.href = issue.url;
+        github.querySelector(".lang-zh").textContent = "在 GitHub 上改";
+        github.querySelector(".lang-en").textContent = "Edit on GitHub";
+      }
+    }
+    if (!draft && item.noteZh) {
+      const textNode = box.querySelector(".film-journal-text");
+      const area = box.querySelector("textarea");
+      const toggle = box.querySelector(".film-journal-toggle");
+      textNode.classList.remove("is-empty");
+      textNode.querySelector(".lang-zh").innerHTML = esc(item.noteZh).replace(/\n/g, "<br>");
+      textNode.querySelector(".lang-en").innerHTML = esc(item.noteEn || item.noteZh).replace(/\n/g, "<br>");
+      if (area && !area.value) area.value = item.noteZh;
+      if (toggle) {
+        toggle.querySelector(".lang-zh").textContent = "编辑";
+        toggle.querySelector(".lang-en").textContent = "Edit";
+      }
+    }
   }
 
   async function enrich(item) {
@@ -326,16 +566,45 @@
     return item;
   }
 
+  function mountCount(total) {
+    let node = document.querySelector(".film-count");
+    if (!node) {
+      node = document.createElement("p");
+      node.className = "film-count";
+      document.body.appendChild(node);
+    }
+    node.hidden = total < 2;
+    const paint = (index) => {
+      node.textContent = `${index} / ${total}`;
+    };
+    paint(1);
+    return paint;
+  }
+
   async function render(mount) {
     const key = mount.dataset.gallery;
     const folder = mount.dataset.folder || "";
-    const items = await collectItems(key, folder);
+    const webFolder = mount.dataset.webFolder || "";
+    fetchIssueNotes();
+    const items = await collectItems(key, folder, webFolder);
     if (!items.length) return;
 
-    mount.innerHTML = items.map(frameHTML).join("");
-    mount.querySelectorAll(".film-frame").forEach(pruneEmpty);
-
+    mount.innerHTML = items.map((item, index) => frameHTML(item, index, items.length)).join("");
     const frames = [...mount.querySelectorAll(".film-frame")];
+    frames.forEach((frame, index) => {
+      pruneEmpty(frame);
+      bindJournal(frame, items[index]);
+      const img = frame.querySelector("img");
+      if (img && img.dataset.fallback && img.dataset.fallback !== img.getAttribute("src")) {
+        img.addEventListener("error", () => {
+          if (img.dataset.failed) return;
+          img.dataset.failed = "1";
+          img.src = img.dataset.fallback;
+        });
+      }
+    });
+
+    const paint = mountCount(items.length);
     const enrichFrame = async (index) => {
       if (!items[index] || items[index]._enriched) return;
       items[index]._enriched = true;
@@ -350,17 +619,31 @@
     enrichFrame(0);
     if (typeof IntersectionObserver === "undefined") {
       for (let i = 1; i < items.length; i += 1) enrichFrame(i);
-      return;
-    }
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        const index = frames.indexOf(entry.target);
-        io.unobserve(entry.target);
-        enrichFrame(index);
+    } else {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const index = frames.indexOf(entry.target);
+          io.unobserve(entry.target);
+          enrichFrame(index);
+        });
+      }, { rootMargin: "320px", threshold: 0.08 });
+      const countIo = new IntersectionObserver((entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!visible) return;
+        paint(frames.indexOf(visible.target) + 1);
+      }, { threshold: [0.2, 0.45, 0.7] });
+      frames.forEach((frame) => {
+        io.observe(frame);
+        countIo.observe(frame);
       });
-    }, { rootMargin: "240px" });
-    frames.forEach((frame) => io.observe(frame));
+    }
+
+    fetchIssueNotes().then(() => {
+      frames.forEach((frame, index) => refreshJournal(frame, items[index]));
+    });
   }
 
   document.querySelectorAll("[data-gallery]").forEach((mount) => {

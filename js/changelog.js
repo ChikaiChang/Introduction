@@ -2,6 +2,11 @@ window.SITE_CHANGELOG = [
   // 新记录加在最上面：{ date: "2026.08.25", zh: "……", en: "……" }
   {
     date: "2026.08.25",
+    zh: "摄影页改为网页尺寸显示全部 18 张；侧栏可以写下所感所悟，并能发到 GitHub。",
+    en: "Photography now shows all 18 photos at web size, with a sidebar journal that can be published on GitHub."
+  },
+  {
+    date: "2026.08.25",
     zh: "运动页放入两张滑雪照片。",
     en: "Added two skiing photos to the sports page."
   },
