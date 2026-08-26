@@ -143,12 +143,6 @@
     }
   }
 
-  function canEditNotes() {
-    const allowed = localStorage.getItem("site-author") === "1" || /(?:^|[?&])edit=1(?:&|$)/.test(location.search);
-    if (allowed) localStorage.setItem("site-author", "1");
-    return allowed;
-  }
-
   function draftKey(gallery, file) {
     return `${gallery}::${file}`;
   }
@@ -334,18 +328,15 @@
     const listed = (window.SITE_GALLERY && window.SITE_GALLERY[key]) || [];
     const mapped = listed.map((entry) => mergeItem(entry, folder, webFolder, key)).filter((item) => item.src);
     const byFile = new Map(mapped.map((item) => [fileName(item.src).toLowerCase(), item]));
-    const hasManifest = !!(window.SITE_GALLERY && Object.prototype.hasOwnProperty.call(window.SITE_GALLERY, key));
-    if (!hasManifest) {
-      const discovered = await listFolder(folder);
-      discovered.forEach((name) => {
-        const keyName = name.toLowerCase();
-        if (!byFile.has(keyName)) {
-          const item = mergeItem({ file: name }, folder, webFolder, key);
-          mapped.push(item);
-          byFile.set(keyName, item);
-        }
-      });
-    }
+    const discovered = [...new Set([...(await listFolder(folder)), ...(await listFolder(webFolder))])];
+    discovered.forEach((name) => {
+      const keyName = name.toLowerCase();
+      if (!byFile.has(keyName)) {
+        const item = mergeItem({ file: name }, folder, webFolder, key);
+        mapped.push(item);
+        byFile.set(keyName, item);
+      }
+    });
     const defaults = {
       photography: { kickerZh: "摄影", kickerEn: "Photography" },
       sports: { kickerZh: "滑雪", kickerEn: "Skiing" },
@@ -361,9 +352,7 @@
   }
 
   function journalHTML(item) {
-    const editing = canEditNotes();
     const hasText = !!(item.noteZh || "").trim();
-    if (!hasText && !editing) return "";
     const textZh = hasText ? esc(item.noteZh).replace(/\n/g, "<br>") : "点这里写下当时的所感所悟。";
     const textEn = hasText ? esc(item.noteEn || item.noteZh).replace(/\n/g, "<br>") : "Write what this frame felt like.";
     return `
@@ -376,7 +365,6 @@
           <span class="lang-zh">${textZh}</span>
           <span class="lang-en">${textEn}</span>
         </p>
-        ${editing ? `
         <button type="button" class="film-journal-toggle">
           <span class="lang-zh">${hasText ? "编辑" : "写下所感"}</span>
           <span class="lang-en">${hasText ? "Edit" : "Write a note"}</span>
@@ -384,16 +372,20 @@
         <form class="film-journal-form" hidden>
           <textarea name="note" rows="5" placeholder="当时在想什么，看见了什么。">${esc(item.noteZh || "")}</textarea>
           <div class="film-journal-actions">
-            <button type="submit">
-              <span class="lang-zh">先记在这台电脑</span>
-              <span class="lang-en">Save on this device</span>
-            </button>
             <a class="film-journal-github" href="${esc(item.noteUrl || newIssueUrl(item.gallery, item.file, item.noteZh))}" target="_blank" rel="noopener">
               <span class="lang-zh">${item.noteUrl ? "在 GitHub 上改" : "发布到 GitHub"}</span>
               <span class="lang-en">${item.noteUrl ? "Edit on GitHub" : "Publish on GitHub"}</span>
             </a>
+            <button type="submit">
+              <span class="lang-zh">先记在这台电脑</span>
+              <span class="lang-en">Save on this device</span>
+            </button>
           </div>
-        </form>` : ""}
+          <p class="film-journal-hint">
+            <span class="lang-zh">发布后会变成一条 GitHub Issue，回到这一页刷新就会显示在照片旁边。</span>
+            <span class="lang-en">Publishing opens a GitHub Issue. Refresh this page afterwards to see it beside the photo.</span>
+          </p>
+        </form>
       </div>
     `;
   }
@@ -435,10 +427,10 @@
   function frameHTML(item, index, total) {
     const side = item.side || (index % 2 === 0 ? "left" : "right");
     const alt = item.locationZh || item.titleZh || item.file || "photo";
-    const display = item.webSrc || item.src;
+    const display = item.gallery === "photography" ? item.src : (item.webSrc || item.src);
     return `
       <section class="film-frame" data-side="${side}" data-index="${index + 1}" data-total="${total}">
-        <img src="${esc(hrefFor(display))}" data-fallback="${esc(hrefFor(item.src))}" alt="${esc(alt)}" decoding="async" loading="${index < 2 ? "eager" : "lazy"}">
+        <img src="${esc(hrefFor(display))}" data-fallback="${esc(hrefFor(item.src))}" alt="${esc(alt)}" decoding="async" loading="${index < 6 ? "eager" : "lazy"}">
         ${metaHTML(item)}
       </section>
     `;
@@ -566,7 +558,24 @@
     return item;
   }
 
-  function mountCount(total) {
+  function indexHTML(items) {
+    return `
+      <nav class="film-index" aria-label="photo index">
+        <p class="film-index-count">
+          <b>${items.length}</b>
+          <span class="lang-zh"> 张</span>
+          <span class="lang-en"> photos</span>
+        </p>
+        ${items.map((item, index) => `
+          <button type="button" class="film-index-item${index === 0 ? " is-current" : ""}" data-jump="${index}" title="${esc(item.locationZh || item.file)}">
+            <img src="${esc(hrefFor(item.webSrc || item.src))}" alt="" loading="lazy">
+          </button>
+        `).join("")}
+      </nav>
+    `;
+  }
+
+  function mountCount(total, indexRoot) {
     let node = document.querySelector(".film-count");
     if (!node) {
       node = document.createElement("p");
@@ -574,8 +583,10 @@
       document.body.appendChild(node);
     }
     node.hidden = total < 2;
+    const buttons = indexRoot ? [...indexRoot.querySelectorAll("[data-jump]")] : [];
     const paint = (index) => {
       node.textContent = `${index} / ${total}`;
+      buttons.forEach((btn, i) => btn.classList.toggle("is-current", i === index - 1));
     };
     paint(1);
     return paint;
@@ -591,6 +602,17 @@
 
     mount.innerHTML = items.map((item, index) => frameHTML(item, index, items.length)).join("");
     const frames = [...mount.querySelectorAll(".film-frame")];
+    document.querySelectorAll(".film-index").forEach((node) => node.remove());
+    document.body.insertAdjacentHTML("beforeend", indexHTML(items));
+    const indexRoot = document.querySelector(".film-index");
+    if (indexRoot) {
+      indexRoot.addEventListener("click", (event) => {
+        const btn = event.target.closest("[data-jump]");
+        if (!btn) return;
+        const target = frames[Number(btn.dataset.jump)];
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
     frames.forEach((frame, index) => {
       pruneEmpty(frame);
       bindJournal(frame, items[index]);
@@ -604,7 +626,7 @@
       }
     });
 
-    const paint = mountCount(items.length);
+    const paint = mountCount(items.length, indexRoot);
     const enrichFrame = async (index) => {
       if (!items[index] || items[index]._enriched) return;
       items[index]._enriched = true;

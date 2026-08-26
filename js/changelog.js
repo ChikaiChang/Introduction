@@ -1,5 +1,15 @@
 window.SITE_CHANGELOG = [
-  // 新记录加在最上面：{ date: "2026.08.25", zh: "……", en: "……" }
+  // 新记录加在最上面：{ date: "2026.08.26", zh: "……", en: "……" }
+  {
+    date: "2026.08.26",
+    zh: "摄影页改回显示原图，不再用压缩预览。",
+    en: "Photography now shows the original files instead of compressed previews."
+  },
+  {
+    date: "2026.08.26",
+    zh: "摄影页右侧可点缩略图跳转全部 18 张；每张图侧栏都能写下所感，并发布到 GitHub Issue。",
+    en: "Photography now has a thumbnail rail for all 18 photos; each sidebar can hold a note published as a GitHub Issue."
+  },
   {
     date: "2026.08.25",
     zh: "摄影页改为网页尺寸显示全部 18 张；侧栏可以写下所感所悟，并能发到 GitHub。",
