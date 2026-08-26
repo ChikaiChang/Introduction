@@ -659,64 +659,6 @@ body.film .footer a {
   margin: 0;
   font-size: 0.92rem;
   line-height: 1.6;
-  cursor: pointer;
-}
-
-.film-journal-text.is-empty {
-  color: rgba(255, 250, 244, 0.55);
-}
-
-.film-journal-toggle,
-.film-journal-actions button,
-.film-journal-actions a {
-  display: inline-flex;
-  align-items: center;
-  margin-top: 10px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(255, 250, 244, 0.08);
-  color: #fffaf4;
-  font: inherit;
-  font-size: 0.78rem;
-  letter-spacing: 0.02em;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.film-journal-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.film-journal-actions button,
-.film-journal-actions a {
-  margin-top: 0;
-}
-
-.film-journal-form {
-  margin-top: 10px;
-}
-
-.film-journal-form textarea {
-  display: block;
-  width: 100%;
-  min-height: 92px;
-  resize: vertical;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(8, 2, 14, 0.45);
-  color: #fffaf4;
-  font: inherit;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.film-journal-form textarea:focus {
-  outline: 2px solid rgba(232, 93, 4, 0.65);
-  outline-offset: 1px;
 }
 
 .film-count {
@@ -785,18 +727,6 @@ body.film .footer a {
 .film-index-item.is-current {
   border-color: #ffb080;
   box-shadow: 0 0 0 1px #ffb080;
-}
-
-.film-journal-github {
-  background: #e85d04 !important;
-  border-color: #e85d04 !important;
-}
-
-.film-journal-hint {
-  margin: 8px 0 0;
-  color: rgba(255, 250, 244, 0.55);
-  font-size: 0.72rem;
-  line-height: 1.45;
 }
 
 body.film img {

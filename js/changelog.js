@@ -2,6 +2,11 @@ window.SITE_CHANGELOG = [
   // 新记录加在最上面：{ date: "2026.08.26", zh: "……", en: "……" }
   {
     date: "2026.08.26",
+    zh: "所感所悟改为 notes 文件夹里的文档；网页只展示，写作在本地窗口或 GitHub 文件里完成。",
+    en: "Notes now come from files in the notes folder. The site only displays them; writing happens locally or in GitHub files."
+  },
+  {
+    date: "2026.08.26",
     zh: "摄影页改回显示原图，不再用压缩预览。",
     en: "Photography now shows the original files instead of compressed previews."
   },

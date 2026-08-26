@@ -1,10 +1,6 @@
 (function () {
   const IMAGE_EXT = /\.(jpe?g|png|webp|gif)$/i;
   const CAMERA_RE = /(Fujifilm[\w\-]*|Fuji[\w\-]*|Sony[\w\-]*|Canon[\w\-]*|Nikon[\w\-]*|Leica[\w\-]*|Hasselblad[\w\-]*|iPhone[\w\-]*|Apple)/i;
-  const NOTES_REPO = "ChikaiChang/Introduction";
-  const NOTES_LABEL = "life-note";
-  const DRAFT_KEY = "site-journal-drafts";
-
   function esc(value) {
     return String(value || "")
       .replace(/&/g, "&amp;")
@@ -135,89 +131,24 @@
     return `<div class="film-exif-row"><span><span class="lang-zh">${esc(labelZh)}</span><span class="lang-en">${esc(labelEn)}</span></span><b>${esc(value)}</b></div>`;
   }
 
-  function loadDrafts() {
+  function noteStem(file) {
+    let base = fileName(file);
+    while (IMAGE_EXT.test(base)) base = base.replace(IMAGE_EXT, "");
+    return base.trim();
+  }
+
+  function noteHref(gallery, file) {
+    return hrefFor(`notes/${gallery}/${noteStem(file)}.md`);
+  }
+
+  async function loadNoteText(gallery, file) {
     try {
-      return JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}") || {};
+      const res = await fetch(noteHref(gallery, file));
+      if (!res.ok) return "";
+      return (await res.text()).replace(/^\uFEFF/, "").trim();
     } catch {
-      return {};
+      return "";
     }
-  }
-
-  function draftKey(gallery, file) {
-    return `${gallery}::${file}`;
-  }
-
-  function saveDraft(gallery, file, text) {
-    const drafts = loadDrafts();
-    const key = draftKey(gallery, file);
-    if (text) drafts[key] = text;
-    else delete drafts[key];
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
-  }
-
-  function noteFromFile(gallery, file, entry) {
-    const bag = window.SITE_NOTES && window.SITE_NOTES[gallery];
-    const fromNotes = bag && typeof bag[file] === "string" ? bag[file] : "";
-    return (entry && (entry.noteZh || entry.note)) || fromNotes || "";
-  }
-
-  function stripIssueBody(body) {
-    return String(body || "")
-      .replace(/<!--[\s\S]*?-->/g, "")
-      .replace(/^\s+|\s+$/g, "");
-  }
-
-  let issueNotes = new Map();
-  let issuesReady = null;
-
-  function issueTitle(gallery, file) {
-    return `${gallery} / ${file}`;
-  }
-
-  function newIssueUrl(gallery, file, text) {
-    const params = new URLSearchParams({
-      labels: NOTES_LABEL,
-      title: issueTitle(gallery, file),
-      body: `<!-- life-note：改这一段即可，回到网页刷新就会出现在照片旁边。 -->\n\n${text || ""}`
-    });
-    return `https://github.com/${NOTES_REPO}/issues/new?${params.toString()}`;
-  }
-
-  function fetchIssueNotes() {
-    if (issuesReady) return issuesReady;
-    const cached = sessionStorage.getItem("site-life-notes");
-    if (cached) {
-      try {
-        JSON.parse(cached).forEach((row) => issueNotes.set(row.key, row));
-      } catch {
-        /* ignore */
-      }
-    }
-    issuesReady = fetch(
-      `https://api.github.com/repos/${NOTES_REPO}/issues?creator=ChikaiChang&state=open&per_page=100`
-    )
-      .then((res) => (res.ok ? res.json() : []))
-      .then((list) => {
-        if (!Array.isArray(list)) return;
-        issueNotes = new Map();
-        const dump = [];
-        list.forEach((issue) => {
-          if (!issue.user || issue.user.login !== "ChikaiChang") return;
-          const match = String(issue.title || "").match(/^(photography|sports|art)\s*\/\s*(.+)$/);
-          if (!match) return;
-          const row = {
-            key: draftKey(match[1], match[2].trim()),
-            text: stripIssueBody(issue.body),
-            url: issue.html_url,
-            number: issue.number
-          };
-          issueNotes.set(row.key, row);
-          dump.push(row);
-        });
-        sessionStorage.setItem("site-life-notes", JSON.stringify(dump));
-      })
-      .catch(() => {});
-    return issuesReady;
   }
 
   async function listFolder(folder) {
@@ -305,9 +236,6 @@
     const src = entry.src || (file ? joinFolder(folder, file) : "");
     const webSrc = webFolder && file ? joinFolder(webFolder, file) : "";
     const fromName = parseFilenameMeta(file);
-    const published = noteFromFile(gallery, file, entry);
-    const issue = issueNotes.get(draftKey(gallery, file));
-    const draft = loadDrafts()[draftKey(gallery, file)] || "";
     return {
       ...fromName,
       ...entry,
@@ -318,9 +246,7 @@
       locationZh: entry.locationZh || fromName.locationZh || "",
       camera: entry.camera || fromName.camera || "",
       lens: entry.lens || fromName.lens || "",
-      noteZh: draft || (issue && issue.text) || published,
-      noteUrl: issue ? issue.url : "",
-      publishedNote: published
+      noteZh: entry.noteZh || entry.note || ""
     };
   }
 
@@ -348,44 +274,27 @@
         item.kickerEn = item.kickerEn || defaults.kickerEn;
       });
     }
+    await Promise.all(mapped.map(async (item) => {
+      const text = await loadNoteText(item.gallery, item.file);
+      if (text) item.noteZh = text;
+    }));
     return mapped;
   }
 
   function journalHTML(item) {
-    const hasText = !!(item.noteZh || "").trim();
-    const textZh = hasText ? esc(item.noteZh).replace(/\n/g, "<br>") : "点这里写下当时的所感所悟。";
-    const textEn = hasText ? esc(item.noteEn || item.noteZh).replace(/\n/g, "<br>") : "Write what this frame felt like.";
+    const text = (item.noteZh || item.noteEn || "").trim();
+    if (!text) return "";
+    const html = esc(text).replace(/\n/g, "<br>");
     return `
-      <div class="film-journal" data-file="${esc(item.file)}" data-gallery="${esc(item.gallery)}">
+      <div class="film-journal">
         <p class="film-journal-kicker">
           <span class="lang-zh">所感所悟</span>
           <span class="lang-en">A note</span>
         </p>
-        <p class="film-journal-text${hasText ? "" : " is-empty"}">
-          <span class="lang-zh">${textZh}</span>
-          <span class="lang-en">${textEn}</span>
+        <p class="film-journal-text">
+          <span class="lang-zh">${html}</span>
+          <span class="lang-en">${esc(item.noteEn || text).replace(/\n/g, "<br>")}</span>
         </p>
-        <button type="button" class="film-journal-toggle">
-          <span class="lang-zh">${hasText ? "编辑" : "写下所感"}</span>
-          <span class="lang-en">${hasText ? "Edit" : "Write a note"}</span>
-        </button>
-        <form class="film-journal-form" hidden>
-          <textarea name="note" rows="5" placeholder="当时在想什么，看见了什么。">${esc(item.noteZh || "")}</textarea>
-          <div class="film-journal-actions">
-            <a class="film-journal-github" href="${esc(item.noteUrl || newIssueUrl(item.gallery, item.file, item.noteZh))}" target="_blank" rel="noopener">
-              <span class="lang-zh">${item.noteUrl ? "在 GitHub 上改" : "发布到 GitHub"}</span>
-              <span class="lang-en">${item.noteUrl ? "Edit on GitHub" : "Publish on GitHub"}</span>
-            </a>
-            <button type="submit">
-              <span class="lang-zh">先记在这台电脑</span>
-              <span class="lang-en">Save on this device</span>
-            </button>
-          </div>
-          <p class="film-journal-hint">
-            <span class="lang-zh">发布后会变成一条 GitHub Issue，回到这一页刷新就会显示在照片旁边。</span>
-            <span class="lang-en">Publishing opens a GitHub Issue. Refresh this page afterwards to see it beside the photo.</span>
-          </p>
-        </form>
       </div>
     `;
   }
@@ -436,52 +345,6 @@
     `;
   }
 
-  function bindJournal(frame, item) {
-    const box = frame.querySelector(".film-journal");
-    if (!box || box.dataset.bound === "1") return;
-    box.dataset.bound = "1";
-    const toggle = box.querySelector(".film-journal-toggle");
-    const form = box.querySelector(".film-journal-form");
-    const area = box.querySelector("textarea");
-    const github = box.querySelector(".film-journal-github");
-    const textNode = box.querySelector(".film-journal-text");
-    if (!toggle || !form || !area || !github || !textNode) return;
-
-    const syncGithub = () => {
-      const next = area.value.trim();
-      if (!item.noteUrl) github.href = newIssueUrl(item.gallery, item.file, next);
-    };
-
-    toggle.addEventListener("click", () => {
-      form.hidden = !form.hidden;
-      if (!form.hidden) {
-        area.focus();
-        syncGithub();
-      }
-    });
-    textNode.addEventListener("click", () => {
-      form.hidden = false;
-      area.focus();
-    });
-    area.addEventListener("input", () => {
-      saveDraft(item.gallery, item.file, area.value.trim());
-      syncGithub();
-    });
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const next = area.value.trim();
-      saveDraft(item.gallery, item.file, next);
-      item.noteZh = next;
-      textNode.classList.toggle("is-empty", !next);
-      textNode.querySelector(".lang-zh").innerHTML = next ? esc(next).replace(/\n/g, "<br>") : "点这里写下当时的所感所悟。";
-      textNode.querySelector(".lang-en").innerHTML = next ? esc(next).replace(/\n/g, "<br>") : "Write what this frame felt like.";
-      toggle.querySelector(".lang-zh").textContent = next ? "编辑" : "写下所感";
-      toggle.querySelector(".lang-en").textContent = next ? "Edit" : "Write a note";
-      form.hidden = true;
-      syncGithub();
-    });
-  }
-
   function applyMeta(frame, item) {
     const aside = frame.querySelector(".film-meta");
     if (!aside) return;
@@ -514,36 +377,6 @@
       exif.innerHTML = rows;
     }
     pruneEmpty(frame);
-  }
-
-  function refreshJournal(frame, item) {
-    const box = frame.querySelector(".film-journal");
-    if (!box) return;
-    const issue = issueNotes.get(draftKey(item.gallery, item.file));
-    const draft = loadDrafts()[draftKey(item.gallery, item.file)] || "";
-    if (issue && issue.text && !draft) item.noteZh = issue.text;
-    if (issue) {
-      item.noteUrl = issue.url;
-      const github = box.querySelector(".film-journal-github");
-      if (github) {
-        github.href = issue.url;
-        github.querySelector(".lang-zh").textContent = "在 GitHub 上改";
-        github.querySelector(".lang-en").textContent = "Edit on GitHub";
-      }
-    }
-    if (!draft && item.noteZh) {
-      const textNode = box.querySelector(".film-journal-text");
-      const area = box.querySelector("textarea");
-      const toggle = box.querySelector(".film-journal-toggle");
-      textNode.classList.remove("is-empty");
-      textNode.querySelector(".lang-zh").innerHTML = esc(item.noteZh).replace(/\n/g, "<br>");
-      textNode.querySelector(".lang-en").innerHTML = esc(item.noteEn || item.noteZh).replace(/\n/g, "<br>");
-      if (area && !area.value) area.value = item.noteZh;
-      if (toggle) {
-        toggle.querySelector(".lang-zh").textContent = "编辑";
-        toggle.querySelector(".lang-en").textContent = "Edit";
-      }
-    }
   }
 
   async function enrich(item) {
@@ -596,7 +429,6 @@
     const key = mount.dataset.gallery;
     const folder = mount.dataset.folder || "";
     const webFolder = mount.dataset.webFolder || "";
-    fetchIssueNotes();
     const items = await collectItems(key, folder, webFolder);
     if (!items.length) return;
 
@@ -615,7 +447,6 @@
     }
     frames.forEach((frame, index) => {
       pruneEmpty(frame);
-      bindJournal(frame, items[index]);
       const img = frame.querySelector("img");
       if (img && img.dataset.fallback && img.dataset.fallback !== img.getAttribute("src")) {
         img.addEventListener("error", () => {
@@ -662,10 +493,6 @@
         countIo.observe(frame);
       });
     }
-
-    fetchIssueNotes().then(() => {
-      frames.forEach((frame, index) => refreshJournal(frame, items[index]));
-    });
   }
 
   document.querySelectorAll("[data-gallery]").forEach((mount) => {
