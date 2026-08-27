@@ -283,22 +283,33 @@ a:hover {
 .news-list,
 .edu-list,
 .award-list,
-.activity-list,
-.log-list {
+.service-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
 .news-list li,
-.edu-list li,
-.award-list li,
-.activity-list li,
-.log-list li {
+.edu-list li {
   display: grid;
-  grid-template-columns: 92px 1fr;
+  grid-template-columns: 108px 1fr;
   gap: 14px;
   padding: 10px 0;
+}
+
+.award-list,
+.service-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 28px;
+}
+
+.award-list li,
+.service-list li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 0;
 }
 
 .date {
@@ -306,25 +317,38 @@ a:hover {
   font-variant-numeric: tabular-nums;
   font-size: 0.92rem;
   font-weight: 600;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.date:empty {
+  display: none;
 }
 
 .cards {
   display: grid;
-  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .card {
   background: var(--bg-elev);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 18px 18px 14px;
+  padding: 14px 14px 12px;
   box-shadow: var(--shadow);
 }
 
 .card h3 {
   margin: 0 0 6px;
-  font-size: 1.05rem;
-  line-height: 1.4;
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
+.card p:not(.meta) {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
 }
 
 .meta {
@@ -739,18 +763,8 @@ body.film img {
   padding: 0 0 48px;
 }
 
-.log-section {
-  margin: 0 0 28px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--line);
-}
-
-.log-section h2 {
-  color: var(--purple-deep);
-}
-
 .visit-count {
-  margin: 18px 0 0;
+  margin: 0 0 12px;
   color: var(--muted);
 }
 
@@ -909,11 +923,14 @@ a:focus-visible,
 
   .news-list li,
   .edu-list li,
-  .award-list li,
-  .activity-list li,
-  .essay-list li,
-  .log-list li {
+  .essay-list li {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+
+  .cards,
+  .award-list,
+  .service-list {
+    grid-template-columns: 1fr;
   }
 }
